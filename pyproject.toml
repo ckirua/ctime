@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools >= 61.0", "wheel >= 0.40.0", "build >= 0.10.0", "cython >= 3.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ctime"
+description = "C Extension containing datetime utilities."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.13"
+authors = [
+    { name="ckirua" }
+]
+dynamic = ["version", "dependencies"]
+
+[tool.setuptools.dynamic]
+version = {attr = "ctime.__about__.__version__"}
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools]
+include-package-data = true
+packages = ["ctime"]
+
+[tool.setuptools.cmdclass]
+build_py = "setuptools.command.build_py.build_py"
+build_ext = "setuptools.command.build_ext.build_ext"
