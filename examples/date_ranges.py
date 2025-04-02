@@ -5,7 +5,7 @@ This example shows how to work with date ranges and intervals.
 """
 from datetime import datetime, timedelta
 
-from ctime.date_range import get_daily_date_range as date_range
+from libs.ctime.ctime.ranges import get_daily_date_range as date_range
 
 
 def demonstrate_basic_range():
