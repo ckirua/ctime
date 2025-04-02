@@ -5,7 +5,7 @@ This example shows how to work with date ranges and intervals.
 """
 from datetime import datetime, timedelta
 
-from libs.ctime.ctime.ranges import get_daily_date_range as date_range
+from ctime import date_range_cython
 
 
 def demonstrate_basic_range():
@@ -17,9 +17,10 @@ def demonstrate_basic_range():
         hour=0, minute=0, second=0, microsecond=0
     )
     end_date = start_date + timedelta(days=5)
+    step = timedelta(days=1)  # Add default step of 1 day
 
     print(f"Dates from {start_date.date()} to {end_date.date()}:")
-    for date in date_range(start_date, end_date):
+    for date in date_range_cython(start_date, end_date, step):
         print(f"  - {date.date()}")
 
 
@@ -37,7 +38,7 @@ def demonstrate_custom_interval():
     print(
         f"Dates from {start_date.date()} to {end_date.date()} (2-day intervals):"
     )
-    for date in date_range(start_date, end_date, step):
+    for date in date_range_cython(start_date, end_date, step):
         print(f"  - {date.date()}")
 
 

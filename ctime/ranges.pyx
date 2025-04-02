@@ -1,57 +1,45 @@
-from cpython.datetime cimport datetime, timedelta
 import numpy as np
+from cpython.datetime cimport datetime, timedelta
+from cpython.list cimport PyList_New, PyList_SET_ITEM
+from cpython.ref cimport Py_INCREF
+from cython.parallel import prange
+from libc.math cimport floor
+from libc.stdint cimport int64_t
 cimport numpy as cnp
 
-# Numpy must be initialized
-cnp.import_array()
 
-def get_daily_timestamps(
-    start_date: datetime,
-    end_date: datetime,
-    delta: timedelta = None
-) -> np.ndarray:
-    if delta is None:
-        delta = timedelta(days=1)
-    
-    cdef int total_days = (end_date - start_date).days + 1
-    cdef double[:] result = np.empty(total_days, dtype='float64')
-    cdef int i
-    cdef double ts = start_date.timestamp()
-    cdef double delta_seconds = delta.total_seconds()
-    
-    for i in range(total_days):
-        result[i] = ts
-        ts += delta_seconds
-    
-    return np.asarray(result)
-    
-cpdef list[datetime] get_daily_date_range(datetime start_date, datetime end_date, timedelta delta=timedelta(days=1)):
-    cdef int i
-    cdef list[datetime] result = []
-    cdef int days_diff = (end_date - start_date).days + 1
-    
-    for i in range(days_diff):
-        result.append(start_date + delta * i)
-    
-    return result
-
-
-# Vectorized version with proper Cython optimizations
-def get_daily_timestamps_vectorized(
-    start_date: datetime,
-    end_date: datetime,
-    delta: timedelta = None
-) -> cnp.ndarray:
-    if delta is None:
-        delta = timedelta(days=1)
-    
+cpdef list datetime_range(datetime start, datetime end, timedelta step):
     cdef:
-        int total_days = (end_date - start_date).days + 1
-        double ts = start_date.timestamp()
-        double delta_seconds = delta.total_seconds()
-        cnp.ndarray[cnp.float64_t] result
+        int n = int((end - start).total_seconds() / step.total_seconds()) + 1
+        list dates = PyList_New(n)
+        datetime current = start
+        int i
     
-    # Use numpy's arange with C-contiguous output
-    result = ts + delta_seconds * np.arange(total_days, dtype=np.float64)
-    return result
+    if n <= 0:
+        return []
+    
+    for i in range(n):
+        Py_INCREF(current)  
+        PyList_SET_ITEM(dates, i, current)
+        current += step
+    
+    return dates
 
+
+cpdef cnp.ndarray[cnp.int64_t] timestamp_s_range(datetime start, datetime end, timedelta step):
+    cdef:
+        int64_t start_ts = <int64_t>floor(start.timestamp())
+        int64_t end_ts = <int64_t>floor(end.timestamp())
+        int64_t step_sec = <int64_t>step.total_seconds()
+        int64_t n = (end_ts - start_ts) // step_sec + 1
+        cnp.ndarray[cnp.int64_t] timestamps = np.empty(n, dtype=np.int64)
+        int64_t i
+    
+    if n <= 0:
+        return np.array([], dtype=np.int64)
+    
+    with nogil: 
+        for i in prange(n, schedule='static'):
+            timestamps[i] = start_ts + i * step_sec
+    
+    return timestamps

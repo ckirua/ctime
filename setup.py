@@ -1,11 +1,8 @@
 # Define NPY_NO_DEPRECATED_API to disable the NumPy API deprecation warning
-import os
 
 import numpy as np
 from Cython.Build import cythonize
 from setuptools import Extension, find_packages, setup
-
-os.environ["NPY_NO_DEPRECATED_API"] = "NPY_1_7_API_VERSION"
 
 extensions = [
     Extension(

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
 
-def get_daily_date_range(
-    start_date: datetime, end_date: datetime, delta: timedelta = ...
+def date_range_cython(
+    start: datetime, end: datetime, step: timedelta
 ) -> list[datetime]: ...
