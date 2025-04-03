@@ -1,39 +1,20 @@
-# cython: language_level=3
-# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
-
-from cpython.datetime cimport datetime, PyDateTime_IMPORT, PyTypeObject, PyObject
+cimport cython
+from cpython cimport PyObject, PyTypeObject
 from libc.stdint cimport int64_t
 import numpy as np
 cimport numpy as np
-import cython
-from datetime import timezone
+from cpython.datetime cimport datetime, PyDateTime_IMPORT
 
 PyDateTime_IMPORT  # Ensure datetime C API is initialized
 
-# Import datetime.h for direct access to C-level datetime functions
+# Import datetime C API
 cdef extern from "datetime.h":
-    # Define the datetime C API structure
     ctypedef struct PyDateTime_CAPI:
-        # Type objects
-        PyTypeObject *DateType
         PyTypeObject *DateTimeType
-        PyTypeObject *TimeType
-        PyTypeObject *DeltaType
-        PyTypeObject *TZInfoType
-        
-        # Constructor functions
-        void* (*DateTime_FromDateAndTime)(int, int, int, int, int, int, int, void*, void*)
-        void* (*Date_FromDate)(int, int, int, void*)
-        void* (*Time_FromTime)(int, int, int, int, void*, void*)
-        void* (*Delta_FromDelta)(int, int, int, int, void*)
-        
-        # Timestamp constructors
-        void* (*DateTime_FromTimestamp)(void*, void*, void*)
-        void* (*Date_FromTimestamp)(void*, void*)
-    # UTC timezone singleton
-    PyObject *TimeZone_UTC
-
-
+        PyObject *TimeZone_UTC
+        PyObject *(*DateTime_FromTimestamp)(PyObject*, PyObject*, PyObject*)
+    
+    PyDateTime_CAPI *PyDateTimeAPI
 # Constants for time conversions
 cdef:
     int64_t NS_PER_US = 1000
@@ -47,33 +28,79 @@ cdef:
 cdef:
     int64_t UNIX_EPOCH_NS = 0
 
+cdef inline object ns_to_datetime_fast(int64_t ns_timestamp):
+    """Fast conversion using direct C API calls."""
+    cdef double seconds = ns_timestamp / <double>NS_PER_SECOND
+    cdef tuple args = (seconds, <object>PyDateTimeAPI.TimeZone_UTC)
+    cdef PyObject* result = PyDateTimeAPI.DateTime_FromTimestamp(
+        <PyObject*>PyDateTimeAPI.DateTimeType,
+        <PyObject*>args,
+        NULL
+    )
+    if result == NULL:
+        raise RuntimeError("Failed to create datetime from timestamp")
+    return <object>result
+
+cdef inline object us_to_datetime_fast(int64_t us_timestamp):
+    cdef double seconds = us_timestamp / <double>US_PER_SECOND
+    cdef tuple args = (seconds, <object>PyDateTimeAPI.TimeZone_UTC)
+    cdef PyObject* result = PyDateTimeAPI.DateTime_FromTimestamp(
+        <PyObject*>PyDateTimeAPI.DateTimeType,
+        <PyObject*>args,
+        NULL
+    )
+    if result == NULL:
+        raise RuntimeError("Failed to create datetime from timestamp")
+    return <object>result
+
+cdef inline object ms_to_datetime_fast(int64_t ms_timestamp):
+    cdef double seconds = ms_timestamp / <double>MS_PER_SECOND
+    cdef tuple args = (seconds, <object>PyDateTimeAPI.TimeZone_UTC)
+    cdef PyObject* result = PyDateTimeAPI.DateTime_FromTimestamp(
+        <PyObject*>PyDateTimeAPI.DateTimeType,
+        <PyObject*>args,
+        NULL
+    )
+    if result == NULL:
+        raise RuntimeError("Failed to create datetime from timestamp")
+    return <object>result
+
+cdef inline object s_to_datetime_fast(int64_t s_timestamp):
+    """Fast conversion of seconds since Unix epoch to Python datetime."""
+    cdef double seconds = <double>s_timestamp
+    cdef tuple args = (seconds, <object>PyDateTimeAPI.TimeZone_UTC)
+    cdef PyObject* result = PyDateTimeAPI.DateTime_FromTimestamp(
+        <PyObject*>PyDateTimeAPI.DateTimeType,
+        <PyObject*>args,
+        NULL
+    )
+    if result == NULL:
+        raise RuntimeError("Failed to create datetime from timestamp")
+    return <object>result
 
 cpdef datetime ns_to_datetime(int64_t ns_timestamp):
     """
     Convert nanoseconds since Unix epoch to Python datetime.
     """
-    cdef double seconds = ns_timestamp / NS_PER_SECOND  
-    return datetime.fromtimestamp(seconds, timezone.utc)
+    return ns_to_datetime_fast(ns_timestamp)
 
 cpdef datetime us_to_datetime(int64_t us_timestamp):
     """
     Convert microseconds since Unix epoch to Python datetime.
     """
-    cdef double seconds = us_timestamp / <double>US_PER_SECOND
-    return datetime.fromtimestamp(seconds, timezone.utc)
+    return us_to_datetime_fast(us_timestamp)
 
 cpdef datetime ms_to_datetime(int64_t ms_timestamp):
     """
     Convert milliseconds since Unix epoch to Python datetime.
     """
-    cdef double seconds = ms_timestamp / <double>MS_PER_SECOND
-    return datetime.fromtimestamp(seconds, timezone.utc)
+    return ms_to_datetime_fast(ms_timestamp)
 
-cpdef datetime s_to_datetime(double s_timestamp):
+cpdef datetime s_to_datetime(int64_t s_timestamp):
     """
     Convert seconds since Unix epoch to Python datetime.
     """
-    return datetime.fromtimestamp(s_timestamp, timezone.utc)
+    return s_to_datetime_fast(s_timestamp)
 
 def datetime_to_ns(dt):
     """
@@ -84,7 +111,6 @@ def datetime_to_ns(dt):
     ns = <int64_t>(dt.timestamp() * NS_PER_SECOND)
     return ns
 
-
 def datetime_to_us(dt):
     """
     Convert Python datetime to microseconds since Unix epoch.
@@ -93,7 +119,6 @@ def datetime_to_us(dt):
         int64_t us
     us = <int64_t>(dt.timestamp() * US_PER_SECOND)
     return us
-
 
 def datetime_to_ms(dt):
     """
@@ -104,13 +129,11 @@ def datetime_to_ms(dt):
     ms = <int64_t>(dt.timestamp() * MS_PER_SECOND)
     return ms
 
-
 def datetime_to_s(dt):
     """
     Convert Python datetime to seconds since Unix epoch.
     """
     return dt.timestamp()
-
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -130,7 +153,6 @@ def ns_array_to_datetime(np.ndarray[int64_t] ns_array):
     
     return out
 
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def datetime_array_to_ns(np.ndarray[object] dt_array):
@@ -148,7 +170,6 @@ def datetime_array_to_ns(np.ndarray[object] dt_array):
         out[i] = <int64_t>(dt.timestamp() * NS_PER_SECOND)
     
     return out
-
 
 def adjust_timestamp(int64_t timestamp, str from_unit='ns', str to_unit='ns'):
     """
