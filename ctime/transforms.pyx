@@ -1,13 +1,13 @@
 cimport cython
+cimport numpy as np
 from cpython cimport PyObject, PyTypeObject
+from cpython.datetime cimport PyDateTime_IMPORT, datetime
 from libc.stdint cimport int64_t
 import numpy as np
-cimport numpy as np
-from cpython.datetime cimport datetime, PyDateTime_IMPORT
 
-PyDateTime_IMPORT  # Ensure datetime C API is initialized
 
 # Import datetime C API
+PyDateTime_IMPORT 
 cdef extern from "datetime.h":
     ctypedef struct PyDateTime_CAPI:
         PyTypeObject *DateTimeType
@@ -15,7 +15,8 @@ cdef extern from "datetime.h":
         PyObject *(*DateTime_FromTimestamp)(PyObject*, PyObject*, PyObject*)
     
     PyDateTime_CAPI *PyDateTimeAPI
-# Constants for time conversions
+
+# Enum ?
 cdef:
     int64_t NS_PER_US = 1000
     int64_t NS_PER_MS = 1000000
@@ -23,13 +24,10 @@ cdef:
     int64_t US_PER_SECOND = 1000000
     int64_t MS_PER_SECOND = 1000
     int64_t SECONDS_PER_DAY = 86400
-
-# Unix epoch (1970-01-01) as datetime64[ns] for reference
-cdef:
+    # Unix epoch (1970-01-01) as datetime64[ns] for reference
     int64_t UNIX_EPOCH_NS = 0
 
 cdef inline object ns_to_datetime_fast(int64_t ns_timestamp):
-    """Fast conversion using direct C API calls."""
     cdef double seconds = ns_timestamp / <double>NS_PER_SECOND
     cdef tuple args = (seconds, <object>PyDateTimeAPI.TimeZone_UTC)
     cdef PyObject* result = PyDateTimeAPI.DateTime_FromTimestamp(
@@ -66,7 +64,6 @@ cdef inline object ms_to_datetime_fast(int64_t ms_timestamp):
     return <object>result
 
 cdef inline object s_to_datetime_fast(int64_t s_timestamp):
-    """Fast conversion of seconds since Unix epoch to Python datetime."""
     cdef double seconds = <double>s_timestamp
     cdef tuple args = (seconds, <object>PyDateTimeAPI.TimeZone_UTC)
     cdef PyObject* result = PyDateTimeAPI.DateTime_FromTimestamp(
