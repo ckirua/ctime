@@ -43,3 +43,25 @@ cpdef cnp.ndarray[cnp.int64_t] timestamp_s_range(datetime start, datetime end, t
             timestamps[i] = start_ts + i * step_sec
     
     return timestamps
+
+cpdef list timestamp_str_range(datetime start, datetime end, timedelta step, str format="%Y-%m-%d %H:%M:%S"):
+    """
+    Returns a list of timestamp strings in the specified format.
+    
+    Args:
+        start: Start datetime
+        end: End datetime
+        step: Time step
+        format: String format for timestamps (default: "%Y-%m-%d %H:%M:%S")
+    
+    Returns:
+        List of formatted timestamp strings
+    """
+    current = start
+    result = []
+    while current <= end:
+        result.append(current.strftime(format))
+        current += step
+    return result
+
+

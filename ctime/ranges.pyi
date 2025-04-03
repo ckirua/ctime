@@ -8,3 +8,9 @@ def datetime_range(
 def timestamp_s_range(
     start: datetime, end: datetime, step: timedelta
 ) -> np.ndarray[np.int64]: ...
+def timestamp_str_range(
+    start: datetime,
+    end: datetime,
+    step: timedelta,
+    format: str = "%Y-%m-%d %H:%M:%S",
+) -> list[str]: ...
