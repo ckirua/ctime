@@ -7,6 +7,10 @@ from .clock import (
 )
 from .conversions import (
     change_ts_units,
+    datetime_to_ms,
+    datetime_to_ns,
+    datetime_to_s,
+    datetime_to_us,
     ms_to_datetime,
     ns_to_datetime,
     s_to_datetime,
@@ -27,6 +31,10 @@ __all__ = (
     "timestamp_str_range",
     # conversion.pyx
     "change_ts_units",
+    "datetime_to_ms",
+    "datetime_to_ns",
+    "datetime_to_s",
+    "datetime_to_us",
     "ms_to_datetime",
     "ns_to_datetime",
     "s_to_datetime",

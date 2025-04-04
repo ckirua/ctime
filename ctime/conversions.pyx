@@ -1,12 +1,17 @@
+# cython: language_level=3
+# bounds-check=False
+# wraparound=False
+# cdivision=True
+
 cimport cython
-cimport numpy as np
 from cpython cimport PyObject, PyTypeObject
 from cpython.datetime cimport PyDateTime_IMPORT, datetime
 from libc.stdint cimport int64_t
-import numpy as np
+
 
 # Import datetime C API
 PyDateTime_IMPORT
+
 
 cdef extern from "datetime.h":
     ctypedef struct PyDateTime_CAPI:
@@ -28,20 +33,26 @@ cdef extern from "datetime.h":
 
     PyDateTime_CAPI *PyDateTimeAPI
 
-# Enum ?
+
 cdef:
     int64_t NS_PER_US = 1000
     int64_t NS_PER_MS = 1000000
     int64_t NS_PER_SECOND = 1000000000
     int64_t US_PER_SECOND = 1000000
     int64_t MS_PER_SECOND = 1000
+    int64_t SECONDS_PER_MINUTE = 60
+    int64_t SECONDS_PER_HOUR = 3600
     int64_t SECONDS_PER_DAY = 86400
+    int64_t DAYS_PER_YEAR = 365
+    int64_t DAYS_PER_LEAP_YEAR = 366
     # Unix epoch (1970-01-01) as datetime64[ns] for reference
+    int64_t DAYS_SINCE_EPOCH_1970 = 719163
     int64_t UNIX_EPOCH_NS = 0
 
 
 # Time to Datetime
 ##################
+@cython.final
 cdef inline object _ns_to_datetime(int64_t ns_timestamp):
     cdef double seconds = ns_timestamp / <double>NS_PER_SECOND
     cdef tuple args = (seconds, <object>PyDateTimeAPI.TimeZone_UTC)
@@ -54,6 +65,7 @@ cdef inline object _ns_to_datetime(int64_t ns_timestamp):
         raise RuntimeError("Failed to create datetime from timestamp")
     return <object>result
 
+@cython.final
 cdef inline object _us_to_datetime(int64_t us_timestamp):
     cdef double seconds = us_timestamp / <double>US_PER_SECOND
     cdef tuple args = (seconds, <object>PyDateTimeAPI.TimeZone_UTC)
@@ -66,6 +78,8 @@ cdef inline object _us_to_datetime(int64_t us_timestamp):
         raise RuntimeError("Failed to create datetime from timestamp")
     return <object>result
 
+
+@cython.final
 cdef inline object _ms_to_datetime(int64_t ms_timestamp):
     cdef double seconds = ms_timestamp / <double>MS_PER_SECOND
     cdef tuple args = (seconds, <object>PyDateTimeAPI.TimeZone_UTC)
@@ -78,6 +92,7 @@ cdef inline object _ms_to_datetime(int64_t ms_timestamp):
         raise RuntimeError("Failed to create datetime from timestamp")
     return <object>result
 
+@cython.final
 cdef inline object _s_to_datetime(int64_t s_timestamp):
     cdef double seconds = <double>s_timestamp
     cdef tuple args = (seconds, <object>PyDateTimeAPI.TimeZone_UTC)
@@ -90,72 +105,80 @@ cdef inline object _s_to_datetime(int64_t s_timestamp):
         raise RuntimeError("Failed to create datetime from timestamp")
     return <object>result
 
+@cython.final
 cpdef datetime ns_to_datetime(int64_t ns_timestamp):
     """
     Convert nanoseconds since Unix epoch to Python datetime.
     """
     return _ns_to_datetime(ns_timestamp)
 
+@cython.final
 cpdef datetime us_to_datetime(int64_t us_timestamp):
     """
     Convert microseconds since Unix epoch to Python datetime.
     """
     return _us_to_datetime(us_timestamp)
 
+@cython.final
 cpdef datetime ms_to_datetime(int64_t ms_timestamp):
     """
     Convert milliseconds since Unix epoch to Python datetime.
     """
     return _ms_to_datetime(ms_timestamp)
 
+@cython.final
 cpdef datetime s_to_datetime(int64_t s_timestamp):
     """
     Convert seconds since Unix epoch to Python datetime.
     """
     return _s_to_datetime(s_timestamp)
 
+
 # Datetime to Time
 ##################
-# cdef inline int64_t _datetime_to_ns(datetime dt):
-#     cdef:
-#         int64_t days = dt.toordinal() - 719163  # Days since 1970-01-01
-#         int64_t seconds = days * 86400 + dt.hour * 3600 + dt.minute * 60 + dt.second
-#     return seconds * 1000000000 + <int64_t>PyDateTimeAPI.PyDateTime_DATE_GET_MICROSECOND(<PyDateTimeAPI.PyDateTime_DateTime*>dt) * 1000
-# 
-# cdef inline int64_t _datetime_to_us(datetime dt):
-#     cdef:
-#         int64_t days = dt.toordinal() - 719163  # Days since 1970-01-01
-#         int64_t seconds = days * 86400 + dt.hour * 3600 + dt.minute * 60 + dt.second
-#     return seconds * 1000000 + <int64_t>PyDateTimeAPI.PyDateTime_DATE_GET_MICROSECOND(<PyDateTimeAPI.PyDateTime_DateTime*>dt)
-# 
-# cdef inline int64_t _datetime_to_ms(datetime dt):
-#     cdef:
-#         int64_t days = dt.toordinal() - 719163  # Days since 1970-01-01
-#         int64_t seconds = days * 86400 + dt.hour * 3600 + dt.minute * 60 + dt.second
-#     return seconds * 1000 + <int64_t>PyDateTimeAPI.PyDateTime_DATE_GET_MICROSECOND(<PyDateTimeAPI.PyDateTime_DateTime*>dt) // 1000
-# 
-# cpdef int64_t datetime_to_ns(datetime dt):
-#     """Convert Python datetime to nanoseconds since Unix epoch."""
-#     return _datetime_to_ns(dt)
-# 
-# cpdef int64_t datetime_to_us(datetime dt):
-#     """Convert Python datetime to microseconds since Unix epoch."""
-#     return _datetime_to_us(dt)
-# 
-# cpdef int64_t datetime_to_ms(datetime dt):
-#     """Convert Python datetime to milliseconds since Unix epoch."""
-#     return _datetime_to_ms(dt)
-# 
-# cpdef double datetime_to_s(datetime dt):
-#     """Convert Python datetime to seconds since Unix epoch."""
-#     return dt.timestamp()
+@cython.final
+cdef inline int64_t _datetime_to_ns(datetime dt):
+    cdef double timestamp = dt.timestamp()
+    return <int64_t>(timestamp * NS_PER_SECOND)
+
+@cython.final
+cdef inline int64_t _datetime_to_us(datetime dt):
+    cdef double timestamp = dt.timestamp()
+    return <int64_t>(timestamp * US_PER_SECOND)
+
+@cython.final
+cdef inline int64_t _datetime_to_ms(datetime dt):
+    cdef double timestamp = dt.timestamp()
+    return <int64_t>(timestamp * MS_PER_SECOND)
+
+@cython.final
+cdef inline double _datetime_to_s(datetime dt):
+    return dt.timestamp()
+
+@cython.final
+cpdef int64_t datetime_to_ns(datetime dt):
+    """Convert Python datetime to nanoseconds since Unix epoch."""
+    return _datetime_to_ns(dt)
+
+@cython.final
+cpdef int64_t datetime_to_us(datetime dt):
+    """Convert Python datetime to microseconds since Unix epoch."""
+    return _datetime_to_us(dt)
+
+@cython.final
+cpdef int64_t datetime_to_ms(datetime dt):
+    """Convert Python datetime to milliseconds since Unix epoch."""
+    return _datetime_to_ms(dt)
+
+@cython.final
+cpdef double datetime_to_s(datetime dt):
+    """Convert Python datetime to seconds since Unix epoch."""
+    return _datetime_to_s(dt)
 
 
 # Adjust Timestamp
 ##################  
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
+@cython.final
 cpdef inline int64_t change_ts_units(int64_t timestamp, str from_unit='ns', str to_unit='ns')  except -1 nogil:
     """
     Convert between different time units.
