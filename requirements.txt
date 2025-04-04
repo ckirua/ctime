@@ -4,3 +4,4 @@ wheel
 build
 black
 isort
+numpy

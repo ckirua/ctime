@@ -30,7 +30,6 @@ clean:
 	@rm -rf *.egg-info/
 	@rm -rf src
 	@find . -type f -name "*.so" -delete
-	# @find . -type f -name "*.c" -delete
 
 build:
 	$(PYTHON) setup.py build_ext --inplace
